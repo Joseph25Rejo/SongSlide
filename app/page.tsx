@@ -690,6 +690,12 @@ export default function Page() {
                        style={{ color: slide.fontColor }}>
                     Slide {currentSlide + 1} of {slides.length}
                   </div>
+                  <div 
+                    className="absolute bottom-2 left-2 text-sm opacity-50"
+                    style={{ color: slide.fontColor }}
+                  >
+                    IPC Gilgal
+                  </div>
                 </div>
                 
                 <div className="mt-4 flex justify-between items-center">
@@ -837,6 +843,12 @@ export default function Page() {
               }}
               dangerouslySetInnerHTML={{ __html: slides[currentSlide].content }}
             />
+            <div 
+              className="absolute bottom-4 left-4 text-sm opacity-50"
+              style={{ color: slides[currentSlide].fontColor }}
+            >
+              IPC Gilgal
+            </div>
             <div 
               className="absolute bottom-4 right-4 text-sm opacity-50"
               style={{ color: slides[currentSlide].fontColor }}
