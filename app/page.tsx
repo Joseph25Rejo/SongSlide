@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -35,6 +34,56 @@ interface SavedPresentation {
   createdAt: string
   lastModified: string
 }
+
+const PreviewSlide = ({ slide, label, isNextSlide = false }: { 
+  slide: Slide, 
+  label: string,
+  isNextSlide?: boolean 
+}) => (
+  <div
+    className="rounded-lg shadow-lg flex items-center justify-center p-4 relative overflow-hidden"
+    style={{
+      background: slide.background,
+      height: isNextSlide ? "150px" : "350px",
+      width: "100%"
+    }}
+  >
+    {slide.media?.type === "image" && (
+      <img
+        src={slide.media.url}
+        alt="Slide background"
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+    )}
+    {slide.media?.type === "video" && (
+      <video
+        src={slide.media.url}
+        className="absolute inset-0 w-full h-full object-cover"
+        autoPlay
+        loop
+        muted
+      />
+    )}
+    <p 
+      className="text-center font-bold z-10" 
+      style={{ 
+        color: slide.fontColor, 
+        fontSize: isNextSlide ? `${slide.fontSize * 0.5}px` : `${slide.fontSize}px` 
+      }}
+      dangerouslySetInnerHTML={{ __html: slide.content }}
+    />
+    <div className="absolute bottom-2 right-2 text-sm opacity-50"
+         style={{ color: slide.fontColor }}>
+      {label}
+    </div>
+    <div 
+      className="absolute bottom-2 left-2 text-sm opacity-50"
+      style={{ color: slide.fontColor }}
+    >
+      IPC Gilgal
+    </div>
+  </div>
+);
 
 const getContrastColor = (background: string): string => {
   const color = background.match(/#[a-fA-F0-9]{6}/)?.[0] || '#1C1C1C'
@@ -249,6 +298,7 @@ const defaultTemplates: SlideTemplate[] = [
     "fontSize": 30,
     "transition": "fade"
   }
+  // ... (include all your other templates here)
 ]
 
 export default function Page() {
@@ -283,7 +333,7 @@ export default function Page() {
         fontColor: textColor,
         fontSize: 30,
         transition: "fade",
-      })),
+      }))
     )
   }, [lyrics, globalBackground, textColor])
 
@@ -315,7 +365,7 @@ export default function Page() {
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [isPresenting])
+  }, [isPresenting, currentSlide])
 
   const showNotification = (message: string) => {
     setAlertMessage(message)
@@ -332,7 +382,7 @@ export default function Page() {
           return { ...slide, ...updates }
         }
         return index === currentSlide ? { ...slide, ...updates } : slide
-      }),
+      })
     )
   }
 
@@ -365,48 +415,76 @@ export default function Page() {
 
   const exportToPPT = () => {
     const slidesHTML = slides.map(slide => `
+      <!DOCTYPE html>
       <div style="
-        background: ${slide.background};
-        color: ${slide.fontColor};
-        font-size: ${slide.fontSize}px;
-        padding: 20px;
-        margin: 20px;
-        height: 500px;
+        page-break-after: always;
+        height: 100vh;
+        width: 100vw;
         display: flex;
         align-items: center;
         justify-content: center;
-        text-align: center;
+        background: ${slide.background};
+        position: relative;
+        padding: 40px;
       ">
-        ${slide.content}
-        ${slide.media ? `<img src="${slide.media.url}" style="position: absolute; width: 100%; height: 100%; object-fit: cover; z-index: 0;" />` : ''}
+        ${slide.media ? `<img src="${slide.media.url}" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;" />` : ''}
+        <div style="
+          color: ${slide.fontColor};
+          font-size: ${slide.fontSize}px;
+          text-align: center;
+          z-index: 1;
+          width: 100%;
+        ">
+          ${slide.content}
+        </div>
+        <div style="
+          position: absolute;
+          bottom: 20px;
+          left: 20px;
+          font-size: 14px;
+          opacity: 0.5;
+          color: ${slide.fontColor};
+        ">
+          IPC Gilgal
+        </div>
       </div>
     `).join('')
-
+  
     const html = `
+      <!DOCTYPE html>
       <html>
-        <body>
-          ${slidesHTML}
-        </body>
+      <head>
+        <meta charset="utf-8">
+        <title>LyricSlide Presentation</title>
+        <style>
+          body { margin: 0; padding: 0; }
+          @media print {
+            div { page-break-after: always; }
+            body { margin: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        ${slidesHTML}
+      </body>
       </html>
     `
-
-    const blob = new Blob([html], { type: 'application/vnd.ms-powerpoint' })
+  
+    const blob = new Blob([html], { type: 'text/html' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'lyrics_presentation.ppt'
+    a.download = 'lyrics_presentation.html'
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-    showNotification("Presentation exported successfully!")
+    showNotification("Presentation exported as HTML. Please open in a browser and use Print to save as PDF.")
   }
 
   const addNewSlide = () => {
     setSlides([...slides, {
-      content: `<div contentEditable="true" 
-      onBlur={(e) => updateSlide({ content: e.target.innerHTML })}
-      className="outline-none">New Slide</div>`,
+      content: "New Slide",
       background: globalBackground,
       fontColor: textColor,
       fontSize: 30,
@@ -482,13 +560,10 @@ export default function Page() {
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length)
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
 
-  const moveSlide = (from: number, to: number) => {
-    setSlides((prevSlides) => {
-      const newSlides = [...prevSlides]
-      const [removed] = newSlides.splice(from, 1)
-      newSlides.splice(to, 0, removed)
-      return newSlides
-    })
+  const getNextSlide = () => {
+    if (slides.length <= 1) return null;
+    const nextIndex = (currentSlide + 1) % slides.length;
+    return slides[nextIndex];
   }
 
   const slide = slides[currentSlide] || {
@@ -513,6 +588,7 @@ export default function Page() {
         </h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Left Column */}
           <div className="space-y-6">
             <Card className={`bg-gray-800/50 border-gray-700 ${textColor === '#000000' ? 'text-black' : 'text-white'}`}>
               <CardContent className="p-6">
@@ -522,7 +598,7 @@ export default function Page() {
                   onChange={(e) => setLyrics(e.target.value)}
                   placeholder="Enter your lyrics here..."
                   rows={10}
-                  className={`bg-gray-700/50 border-gray-600 ${textColor === '#000000' ? 'text-black' : 'text-white'} placeholder-gray-400`}
+                  className={`bg-gray-700/50 border-gray-600 ${textColor === '#000000' ? 'text-black' : 'text-white'}placeholder-gray-400`}
                 />
               </CardContent>
             </Card>
@@ -552,15 +628,15 @@ export default function Page() {
                   />
                 </div>
                 <div className="flex items-center justify-between mb-4">
-                <Label htmlFor="applyFontToAll" className={textColor === '#000000' ? 'text-black' : 'text-white'}>
-                  Apply font size to all slides
-                </Label>
-                <Switch
-                  id="applyFontToAll"
-                  checked={applyFontToAll}
-                  onCheckedChange={setApplyFontToAll}
-                />
-              </div>
+                  <Label htmlFor="applyFontToAll" className={textColor === '#000000' ? 'text-black' : 'text-white'}>
+                    Apply font size to all slides
+                  </Label>
+                  <Switch
+                    id="applyFontToAll"
+                    checked={applyFontToAll}
+                    onCheckedChange={setApplyFontToAll}
+                  />
+                </div>
 
                 <Tabs defaultValue="background" className="w-full">
                   <TabsList className="w-full">
@@ -577,9 +653,9 @@ export default function Page() {
                       <Input
                         id="background"
                         type="text"
-                        value={applyToAll ? globalBackground : slide.background}
+                        value={applyToAll ? globalBackground : (slide ? slide.background : '')}
                         onChange={(e) => updateSlide({ background: e.target.value })}
-                        className={`bg-gray-700/50 border-gray-600 ${textColor === '#000000' ?'text-black' : 'text-white'}`}
+                        className={`bg-gray-700/50 border-gray-600 ${textColor === '#000000' ? 'text-black' : 'text-white'}`}
                         placeholder="e.g. linear-gradient(45deg, #1C1C1C, #663399, #B06AB3)"
                       />
                     </div>
@@ -605,7 +681,7 @@ export default function Page() {
                       <Input
                         id="fontColor"
                         type="color"
-                        value={slide.fontColor}
+                        value={slide ? slide.fontColor : '#FFFFFF'}
                         onChange={(e) => updateSlide({ fontColor: e.target.value })}
                         className="h-10"
                       />
@@ -617,7 +693,7 @@ export default function Page() {
                       <Input
                         id="fontSize"
                         type="number"
-                        value={applyFontToAll ? globalFontSize : slide.fontSize}
+                        value={applyFontToAll ? globalFontSize : (slide ? slide.fontSize : 16)}
                         onChange={(e) => updateSlide({ fontSize: Number(e.target.value) })}
                         className={`bg-gray-700/50 border-gray-600 ${textColor === '#000000' ? 'text-black' : 'text-white'}`}
                       />
@@ -643,6 +719,7 @@ export default function Page() {
             </Card>
           </div>
 
+          {/* Right Column */}
           <div className="space-y-6">
             <Card className={`bg-gray-800/50 border-gray-700 ${textColor === '#000000' ? 'text-black' : 'text-white'}`}>
               <CardContent className="p-6">
@@ -658,45 +735,24 @@ export default function Page() {
                     </Button>
                   </div>
                 </div>
-                
-                <div
-                  className="w-full aspect-video rounded-lg shadow-lg flex items-center justify-center p-4 relative overflow-hidden"
-                  style={{
-                    background: slide.background,
-                  }}
-                >
-                  {slide.media?.type === "image" && (
-                    <img
-                      src={slide.media.url}
-                      alt="Slide background"
-                      className="absolute inset-0 w-full h-full object-cover"
+
+                {/* Current Slide Preview */}
+                <PreviewSlide 
+                  slide={slide} 
+                  label={`Current: ${currentSlide + 1}/${slides.length}`} 
+                />
+
+                {/* Next Slide Preview */}
+                {getNextSlide() && (
+                  <div className="mt-4">
+                    <h3 className="text-lg font-semibold mb-2">Next Slide Preview</h3>
+                    <PreviewSlide 
+                      slide={getNextSlide()} 
+                      label={`Next: ${((currentSlide + 1) % slides.length) + 1}/${slides.length}`}
+                      isNextSlide={true}
                     />
-                  )}
-                  {slide.media?.type === "video" && (
-                    <video
-                      src={slide.media.url}
-                      className="absolute inset-0 w-full h-full object-cover"
-                      autoPlay
-                      loop
-                      muted
-                    />
-                  )}
-                  <p 
-                    className="text-center font-bold z-10" 
-                    style={{ color: slide.fontColor, fontSize: `${slide.fontSize}px` }}
-                    dangerouslySetInnerHTML={{ __html: slide.content }}
-                  />
-                  <div className="absolute bottom-2 right-2 text-sm opacity-50"
-                       style={{ color: slide.fontColor }}>
-                    Slide {currentSlide + 1} of {slides.length}
                   </div>
-                  <div 
-                    className="absolute bottom-2 left-2 text-sm opacity-50"
-                    style={{ color: slide.fontColor }}
-                  >
-                    IPC Gilgal
-                  </div>
-                </div>
+                )}
                 
                 <div className="mt-4 flex justify-between items-center">
                   <Button onClick={prevSlide} disabled={slides.length <= 1} className="bg-purple-600 hover:bg-purple-700">
@@ -758,7 +814,6 @@ export default function Page() {
                 const filtered = templates.filter(t => 
                   t.name.toLowerCase().includes(searchTerm)
                 );
-                // You'll need to add a state for filteredTemplates
                 setFilteredTemplates(filtered);
               }}
             />
