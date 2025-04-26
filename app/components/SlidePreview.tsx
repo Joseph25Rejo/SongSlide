@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import type { Slide } from "../page"
+import type { Slide } from "@/types"
 
 interface SlidePreviewProps {
   slides: Slide[]

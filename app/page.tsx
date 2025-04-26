@@ -1,305 +1,56 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
+import { useState, useEffect } from "react"
+import Button from "@/components/CustomButton"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { ChevronLeft, ChevronRight, Download, Plus, Copy, Trash2 } from "lucide-react"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ChevronLeft, ChevronRight, Copy, Download, Plus, Trash2 } from "lucide-react"
+import { getContrastColor } from "@/lib/utils"
+import { defaultTemplates } from "@/lib/templates"
+import { Slide, SlideTemplate, SavedPresentation } from "@/types"
+import PresenterView from "@/components/PresenterView"
+import { setupExternalWindow, updateExternalWindow } from "@/utils/presenterUtils"
+import ImportPPT from "@/components/ImportPPT";
 
-interface Slide {
-  content: string
-  background: string
-  fontColor: string
-  fontSize: number
-  transition: string
-  media?: { type: "image" | "video"; url: string }
-}
-
-interface SlideTemplate {
-  name: string
-  background: string
-  fontColor: string
-  fontSize: number
-  transition: string
-}
-
-interface SavedPresentation {
-  name: string
-  slides: Slide[]
-  createdAt: string
-  lastModified: string
-}
-
-const PreviewSlide = ({ slide, label, isNextSlide = false }: { 
-  slide: Slide, 
-  label: string,
-  isNextSlide?: boolean 
-}) => (
-  <div
-    className="rounded-lg shadow-lg flex items-center justify-center p-4 relative overflow-hidden"
-    style={{
-      background: slide.background,
-      height: isNextSlide ? "150px" : "350px",
-      width: "100%"
-    }}
-  >
-    {slide.media?.type === "image" && (
-      <img
-        src={slide.media.url}
-        alt="Slide background"
-        className="absolute inset-0 w-full h-full object-cover"
-      />
-    )}
-    {slide.media?.type === "video" && (
-      <video
-        src={slide.media.url}
-        className="absolute inset-0 w-full h-full object-cover"
-        autoPlay
-        loop
-        muted
-      />
-    )}
-    <p 
-      className="text-center font-bold z-10" 
-      style={{ 
-        color: slide.fontColor, 
-        fontSize: isNextSlide ? `${slide.fontSize * 0.5}px` : `${slide.fontSize}px` 
-      }}
-      dangerouslySetInnerHTML={{ __html: slide.content }}
-    />
-    <div className="absolute bottom-2 right-2 text-sm opacity-50"
-         style={{ color: slide.fontColor }}>
-      {label}
-    </div>
+const PreviewSlide = ({ slide, label, isNextSlide = false }: { slide: Slide, label: string, isNextSlide?: boolean }) => (
+  <div className="relative">
+    <div className="text-sm font-medium mb-1">{label}</div>
     <div 
-      className="absolute bottom-2 left-2 text-sm opacity-50"
-      style={{ color: slide.fontColor }}
+      className={`aspect-video rounded-lg overflow-hidden flex items-center justify-center p-4 ${isNextSlide ? 'opacity-80' : ''}`}
+      style={{ background: slide.background }}
     >
-      IPC Gilgal
+      {slide.media?.type === "image" && (
+        <img
+          src={slide.media.url}
+          alt="Slide background"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      )}
+      {slide.media?.type === "video" && (
+        <video
+          src={slide.media.url}
+          className="absolute inset-0 w-full h-full object-cover"
+          autoPlay
+          loop
+          muted
+        />
+      )}
+      <p
+        className="text-center font-bold z-10 max-w-full"
+        style={{
+          color: slide.fontColor,
+          fontSize: `${slide.fontSize}px`
+        }}
+        dangerouslySetInnerHTML={{ __html: slide.content }}
+      />
     </div>
   </div>
-);
-
-const getContrastColor = (background: string): string => {
-  const color = background.match(/#[a-fA-F0-9]{6}/)?.[0] || '#1C1C1C'
-  const r = parseInt(color.slice(1, 3), 16)
-  const g = parseInt(color.slice(3, 5), 16)
-  const b = parseInt(color.slice(5, 7), 16)
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-  return luminance > 0.5 ? '#000000' : '#FFFFFF'
-}
-
-const defaultTemplates: SlideTemplate[] = [
-  {
-    name: "Gradient Purple",
-    background: "linear-gradient(45deg, #1C1C1C, #663399, #B06AB3)",
-    fontColor: "#FFFFFF",
-    fontSize: 30,
-    transition: "fade"
-  },
-  {
-    name: "Dark Mode",
-    background: "#121212",
-    fontColor: "#FFFFFF",
-    fontSize: 30,
-    transition: "fade"
-  },
-  {
-    name: "Light Mode",
-    background: "#FFFFFF",
-    fontColor: "#000000",
-    fontSize: 30,
-    transition: "fade"
-  },
-  {
-    name: "Ocean",
-    background: "linear-gradient(45deg, #1a4b6b, #2a9d8f)",
-    fontColor: "#FFFFFF",
-    fontSize: 30,
-    transition: "fade"
-  },
-  {
-    "name": "Sunset Glow",
-    "background": "linear-gradient(45deg, #ff7e5f, #feb47b)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Cool Blues",
-    "background": "linear-gradient(45deg, #2193b0, #6dd5ed)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Mojito",
-    "background": "linear-gradient(45deg, #1d976c, #93f9b9)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Cherry Blossom",
-    "background": "linear-gradient(45deg, #ff9a9e, #fad0c4)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Deep Space",
-    "background": "linear-gradient(45deg, #000000, #434343)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Emerald Water",
-    "background": "linear-gradient(45deg, #348F50, #56B4D3)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Bloody Mary",
-    "background": "linear-gradient(45deg, #FF512F, #DD2476)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Aubergine",
-    "background": "linear-gradient(45deg, #AA076B, #61045F)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Aqua Marine",
-    "background": "linear-gradient(45deg, #1A2980, #26D0CE)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Sunrise",
-    "background": "linear-gradient(45deg, #FF512F, #F09819)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Purple Paradise",
-    "background": "linear-gradient(45deg, #1D2B64, #F8CDDA)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Sea Blizz",
-    "background": "linear-gradient(45deg, #1CD8D2, #93EDC7)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Mango Pulp",
-    "background": "linear-gradient(45deg, #F09819, #EDDE5D)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Royal Blue",
-    "background": "linear-gradient(45deg, #536976, #292E49)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Frost",
-    "background": "linear-gradient(45deg, #000428, #004e92)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Lush",
-    "background": "linear-gradient(45deg, #56ab2f, #a8e063)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Firewatch",
-    "background": "linear-gradient(45deg, #cb2d3e, #ef473a)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Sherbert",
-    "background": "linear-gradient(45deg, #f79d00, #64f38c)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Blood Red",
-    "background": "linear-gradient(45deg, #f85032, #e73827)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Sun on the Horizon",
-    "background": "linear-gradient(45deg, #fceabb, #f8b500)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Dirty Fog",
-    "background": "linear-gradient(45deg, #B993D6, #8CA6DB)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "The Strain",
-    "background": "linear-gradient(45deg, #870000, #190A05)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Cherry",
-    "background": "linear-gradient(45deg, #EB3349, #F45C43)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Pink Flavour",
-    "background": "linear-gradient(45deg, #800080, #ffc0cb)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  },
-  {
-    "name": "Fly High",
-    "background": "linear-gradient(45deg, #48C6EF, #6F86D6)",
-    "fontColor": "#FFFFFF",
-    "fontSize": 30,
-    "transition": "fade"
-  }
-  // ... (include all your other templates here)
-]
+)
 
 export default function Page() {
   const [lyrics, setLyrics] = useState<string>("")
@@ -319,6 +70,8 @@ export default function Page() {
   const [filteredTemplates, setFilteredTemplates] = useState(templates)
   const [applyFontToAll, setApplyFontToAll] = useState(true)
   const [globalFontSize, setGlobalFontSize] = useState(30)
+  const [presenterView, setPresenterView] = useState(false)
+  const [externalWindow, setExternalWindow] = useState<Window | null>(null)
 
   const textColor = getContrastColor(globalBackground)
 
@@ -356,8 +109,7 @@ export default function Page() {
             prevSlide()
             break
           case "Escape":
-            setIsPresenting(false)
-            document.exitFullscreen().catch(() => {})
+            exitPresentation()
             break
         }
       }
@@ -366,6 +118,13 @@ export default function Page() {
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
   }, [isPresenting, currentSlide])
+
+  // Add effect to update external window when slide changes
+  useEffect(() => {
+    if (presenterView && isPresenting) {
+      updateExternalWindow(externalWindow, currentSlide, slides);
+    }
+  }, [currentSlide, slides, externalWindow, presenterView, isPresenting]);
 
   const showNotification = (message: string) => {
     setAlertMessage(message)
@@ -385,6 +144,14 @@ export default function Page() {
       })
     )
   }
+
+  const updateSlideNotes = (notes: string) => {
+    setSlides((prevSlides) =>
+      prevSlides.map((slide, index) => {
+        return index === currentSlide ? { ...slide, notes } : slide;
+      })
+    );
+  };
 
   const handleBackgroundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -413,74 +180,30 @@ export default function Page() {
     }
   }
 
-  const exportToPPT = () => {
-    const slidesHTML = slides.map(slide => `
-      <!DOCTYPE html>
-      <div style="
-        page-break-after: always;
-        height: 100vh;
-        width: 100vw;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: ${slide.background};
-        position: relative;
-        padding: 40px;
-      ">
-        ${slide.media ? `<img src="${slide.media.url}" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;" />` : ''}
-        <div style="
-          color: ${slide.fontColor};
-          font-size: ${slide.fontSize}px;
-          text-align: center;
-          z-index: 1;
-          width: 100%;
-        ">
-          ${slide.content}
-        </div>
-        <div style="
-          position: absolute;
-          bottom: 20px;
-          left: 20px;
-          font-size: 14px;
-          opacity: 0.5;
-          color: ${slide.fontColor};
-        ">
-          IPC Gilgal
-        </div>
-      </div>
-    `).join('')
-  
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>LyricSlide Presentation</title>
-        <style>
-          body { margin: 0; padding: 0; }
-          @media print {
-            div { page-break-after: always; }
-            body { margin: 0; }
-          }
-        </style>
-      </head>
-      <body>
-        ${slidesHTML}
-      </body>
-      </html>
-    `
-  
-    const blob = new Blob([html], { type: 'text/html' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'lyrics_presentation.html'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    showNotification("Presentation exported as HTML. Please open in a browser and use Print to save as PDF.")
-  }
+  // Add this to your state variables near the top of the component
+    const [songTitle, setSongTitle] = useState<string>("")
+    
+    useEffect(() => {
+      const verses = lyrics.split("\n\n").filter(verse => verse.trim() !== "")
+      
+      // Extract song title from first line if not already set
+      if (lyrics.trim() && !songTitle) {
+        const firstLine = lyrics.trim().split('\n')[0];
+        setSongTitle(firstLine);
+      }
+      
+      setSlides(
+        verses.map((content) => ({
+          content: content.split('\n').map((line, i, arr) => 
+            i === arr.length - 1 ? line : line + '<br/>'
+          ).join(''),
+          background: globalBackground,
+          fontColor: textColor,
+          fontSize: 30,
+          transition: "fade",
+        }))
+      )
+    }, [lyrics, globalBackground, textColor, songTitle])
 
   const addNewSlide = () => {
     setSlides([...slides, {
@@ -552,10 +275,27 @@ export default function Page() {
 
   const startPresentation = () => {
     setIsPresenting(true)
-    document.documentElement.requestFullscreen().catch(() => {
-      showNotification("Fullscreen mode not available")
-    })
+    
+    if (presenterView) {
+      setupExternalWindow(setExternalWindow, showNotification, setPresenterView);
+    } else {
+      // Regular fullscreen presentation
+      document.documentElement.requestFullscreen().catch(() => {
+        showNotification("Fullscreen mode not available")
+      })
+    }
   }
+
+  const exitPresentation = () => {
+    setIsPresenting(false);
+    if (externalWindow && !externalWindow.closed) {
+      externalWindow.close();
+      setExternalWindow(null);
+    }
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
 
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length)
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
@@ -565,6 +305,68 @@ export default function Page() {
     const nextIndex = (currentSlide + 1) % slides.length;
     return slides[nextIndex];
   }
+  
+  // Add the handleImportPPT function here
+  const handleImportPPT = (importedSlides: Slide[], title?: string) => {
+    setSlides(importedSlides);
+    setCurrentSlide(0);
+    if (title) {
+      setSongTitle(title);
+    }
+    showNotification("Presentation imported successfully!");
+  };
+
+  // Update the exportToPPT function to use the song title
+  const exportToPPT = () => {
+    if (slides.length === 0) {
+      showNotification("No slides to export");
+      return;
+    }
+    
+    // Create HTML content
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${songTitle || "Presentation"}</title>
+        <style>
+          body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+          .slide { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; page-break-after: always; position: relative; }
+          @media print {
+            .slide { page-break-after: always; }
+          }
+        </style>
+      </head>
+      <body>
+        ${slides.map(slide => `
+          <div class="slide" style="background: ${slide.background};">
+            ${slide.media?.type === "image" ? `<img src="${slide.media.url}" alt="Slide background" style="position: absolute; width: 100%; height: 100%; object-fit: cover;">` : ''}
+            ${slide.media?.type === "video" ? `<video src="${slide.media.url}" style="position: absolute; width: 100%; height: 100%; object-fit: cover;" autoplay loop muted></video>` : ''}
+            <div style="color: ${slide.fontColor}; font-size: ${slide.fontSize}px; text-align: center; max-width: 80%; z-index: 10; font-weight: bold;">
+              ${slide.content}
+            </div>
+            <div style="position: absolute; bottom: 20px; left: 20px; font-size: 14px; opacity: 0.5; color: ${slide.fontColor};">
+              IPC Gilgal
+            </div>
+          </div>
+        `).join('')}
+      </body>
+      </html>
+    `;
+    
+    // Create a blob and download link
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${songTitle || "presentation"}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showNotification("Presentation exported successfully!");
+  };
 
   const slide = slides[currentSlide] || {
     content: "Your lyrics will appear here",
@@ -617,6 +419,31 @@ export default function Page() {
                   </div>
                 </div>
 
+                {/* Import/Export Card */}
+                <Card className={`bg-gray-800/50 border-gray-700 ${textColor === '#000000' ? 'text-black' : 'text-white'}`}>
+                  <CardContent className="p-6">
+                    <h2 className="text-xl font-semibold mb-4">Import/Export</h2>
+                    <div className="space-y-4">
+                      <div className="flex flex-col space-y-2">
+                        <Label htmlFor="presentationTitle" className={textColor === '#000000' ? 'text-black' : 'text-white'}>
+                          Song Title
+                        </Label>
+                        <Input
+                          id="presentationTitle"
+                          placeholder="Enter song title"
+                          value={songTitle}
+                          onChange={(e) => setSongTitle(e.target.value)}
+                          className={`bg-gray-700/50 border-gray-600 ${textColor === '#000000' ? 'text-black' : 'text-white'}`}
+                        />
+                      </div>
+                      <ImportPPT 
+                        onImport={handleImportPPT} 
+                        onError={(message) => showNotification(message)} 
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
                 <div className="flex items-center justify-between mb-4">
                   <Label htmlFor="applyToAll" className={textColor === '#000000' ? 'text-black' : 'text-white'}>
                     Apply background to all slides
@@ -643,6 +470,7 @@ export default function Page() {
                     <TabsTrigger value="background" className="flex-1">Background</TabsTrigger>
                     <TabsTrigger value="text" className="flex-1">Text</TabsTrigger>
                     <TabsTrigger value="media" className="flex-1">Media</TabsTrigger>
+                    <TabsTrigger value="notes" className="flex-1">Notes</TabsTrigger>
                   </TabsList>
                   
                   <TabsContent value="background" className="space-y-4">
@@ -714,6 +542,22 @@ export default function Page() {
                       />
                     </div>
                   </TabsContent>
+                  
+                  <TabsContent value="notes" className="space-y-4">
+                    <div>
+                      <Label htmlFor="presenterNotes" className={textColor === '#000000' ? 'text-black' : 'text-white'}>
+                        Presenter Notes
+                      </Label>
+                      <Textarea
+                        id="presenterNotes"
+                        value={slides[currentSlide]?.notes || ""}
+                        onChange={(e) => updateSlideNotes(e.target.value)}
+                        placeholder="Add notes for the presenter view..."
+                        rows={5}
+                        className={`bg-gray-700/50 border-gray-600 ${textColor === '#000000' ? 'text-black' : 'text-white'} placeholder-gray-400`}
+                      />
+                    </div>
+                  </TabsContent>
                 </Tabs>
               </CardContent>
             </Card>
@@ -726,6 +570,17 @@ export default function Page() {
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-semibold">Preview</h2>
                   <div className="flex gap-2">
+                    <div className="flex items-center mr-2">
+                      <Switch
+                        id="presenterView"
+                        checked={presenterView}
+                        onCheckedChange={setPresenterView}
+                        className="mr-2"
+                      />
+                      <Label htmlFor="presenterView" className={textColor === '#000000' ? 'text-black' : 'text-white'}>
+                        Presenter View
+                      </Label>
+                    </div>
                     <Button onClick={startPresentation} className="bg-indigo-600 hover:bg-indigo-700">
                       Present
                     </Button>
@@ -747,7 +602,7 @@ export default function Page() {
                   <div className="mt-4">
                     <h3 className="text-lg font-semibold mb-2">Next Slide Preview</h3>
                     <PreviewSlide 
-                      slide={getNextSlide()} 
+                      slide={getNextSlide()!} 
                       label={`Next: ${((currentSlide + 1) % slides.length) + 1}/${slides.length}`}
                       isNextSlide={true}
                     />
@@ -865,8 +720,20 @@ export default function Page() {
         </div>
       )}
 
-      {/* Presentation Mode */}
-      {isPresenting && (
+      {/* Presenter View Mode */}
+      {isPresenting && presenterView && slides.length > 0 && (
+        <PresenterView
+          slides={slides}
+          currentSlide={currentSlide}
+          nextSlide={nextSlide}
+          prevSlide={prevSlide}
+          exitPresentation={exitPresentation}
+          externalWindow={externalWindow}
+        />
+      )}
+
+      {/* Regular Presentation Mode (keep this for non-presenter view) */}
+      {isPresenting && !presenterView && slides.length > 0 && currentSlide < slides.length && (
         <div className="fixed inset-0 bg-black z-50">
           <div
             className="w-full h-full flex items-center justify-center p-8"

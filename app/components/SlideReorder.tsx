@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import type { Slide } from "../page"
+import type { Slide } from "@/types"
 
 interface SlideReorderProps {
   slides: Slide[]

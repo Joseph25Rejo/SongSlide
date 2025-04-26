@@ -1,4 +1,4 @@
-import type { Slide } from "../components/LyricsToSlides"
+import type { Slide } from "@/types"
 
 const SlideCustomization = ({ slide, index }: { slide: Slide; index: number }) => {
   return (

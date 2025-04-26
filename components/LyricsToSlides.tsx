@@ -1,21 +1,15 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import LyricsInput from "./LyricsInput"
+import LyricsInput from "../app/components/LyricsInput"
 import SlidePreview from "./SlidePreview"
 import SlideCustomization from "./SlideCustomization"
 import SlideReorder from "./SlideReorder"
 import { Button } from "@/components/ui/button"
 import pptxgen from "pptxgenjs"
+import type { Slide } from "@/types"
 
-export interface Slide {
-  content: string
-  background: string
-  fontColor: string
-  fontSize: number
-  transition: string
-  media?: { type: "image" | "video"; url: string }
-}
+// Remove the local Slide interface definition and use the imported one
 
 export default function LyricsToSlides() {
   const [lyrics, setLyrics] = useState<string>("")
@@ -67,12 +61,7 @@ export default function LyricsToSlides() {
 
       if (slide.background.startsWith("linear-gradient")) {
         const colors = slide.background.match(/#[A-Fa-f0-9]{6}/g) || []
-        pptSlide.background = {
-          type: "gradient",
-          color1: colors[0] || "#FFFFFF",
-          color2: colors[1] || "#000000",
-          angle: 45,
-        }
+        pptSlide.background = { color: colors[0] || "#FFFFFF" }
       } else if (slide.background.startsWith("http")) {
         pptSlide.background = { data: slide.background }
       }
@@ -129,10 +118,12 @@ export default function LyricsToSlides() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <LyricsInput lyrics={lyrics} setLyrics={setLyrics} />
-          <SlideCustomization slides={slides} setSlides={setSlides} />
+          {slides.map((slide, index) => (
+            <SlideCustomization key={index} slide={slide} index={index} />
+          ))}
         </div>
         <div>
-          <SlidePreview slides={slides} />
+          <SlidePreview slide={slides[0]} />
           <SlideReorder slides={slides} setSlides={setSlides} />
           <div className="mt-4 space-x-2">
             <Button onClick={exportToPowerPoint}>Export to PowerPoint</Button>
