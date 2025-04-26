@@ -4,6 +4,7 @@ export interface Slide {
   fontColor: string;
   fontSize: number;
   transition: string;
+  title?: string; // Add optional title property
   media?: { type: "image" | "video"; url: string };
   notes?: string;
 }
