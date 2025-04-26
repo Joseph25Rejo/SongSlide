@@ -1,11 +1,12 @@
-# LyricSlide: Lyrics to Presentation Converter
+# SongSlide: Lyrics to Presentation Converter
 
-LyricSlide is a modern web application that transforms song lyrics into beautiful, customizable presentation slides. Perfect for worship teams, karaoke nights, or any scenario where you need to display lyrics in an engaging format.
+SongSlide is a modern web application that transforms song lyrics into beautiful, customizable presentation slides. Perfect for worship teams, karaoke nights, or any scenario where you need to display lyrics in an engaging format.
 
 ## 🌟 Features
 
 ### Core Functionality
 - Convert lyrics into presentation slides automatically
+- Import from PowerPoint, HTML, and OpenLyrics XML formats
 - Live preview of slides while editing
 - Full-screen presentation mode with keyboard controls
 - Export presentations to PowerPoint format
@@ -40,8 +41,8 @@ LyricSlide is a modern web application that transforms song lyrics into beautifu
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/lyricslide.git
-cd lyricslide
+git clone https://github.com/yourusername/songslide.git
+cd songslide
 ```
 
 2. Install dependencies:
